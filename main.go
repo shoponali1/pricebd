@@ -110,8 +110,11 @@ func savePrice(filename string, priceData *Price) {
 		}
 	}
 	if !exists {
+		fmt.Printf("Adding new record for %s to %s\n", priceData.Date, filename)
 		records = append(records, make([]string, 5))
 		writeRow(&records[len(records)-1], priceData)
+	} else {
+		fmt.Printf("Updated existing record for %s in %s\n", priceData.Date, filename)
 	}
 	f.Seek(0, 0)
 	f.Truncate(0)
@@ -134,7 +137,10 @@ func savePriceJSON(filename string, priceData *Price) {
 		}
 	}
 	if !exists {
+		fmt.Printf("Adding new JSON entry for %s to %s\n", priceData.Date, filename)
 		prices = append(prices, *priceData)
+	} else {
+		fmt.Printf("Updated existing JSON entry for %s in %s\n", priceData.Date, filename)
 	}
 
 	data, err := json.MarshalIndent(prices, "", "  ")
