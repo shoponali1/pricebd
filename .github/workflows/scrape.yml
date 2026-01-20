@@ -27,7 +27,7 @@ jobs:
         run: |
           git config user.name "Automated Scraper"
           git config user.email "actions@users.noreply.github.com"
-          git add fe/src/prices.csv fe/src/silver-prices.csv
+          git add fe/src/prices.csv fe/src/silver-prices.csv fe/src/prices.json fe/src/silver-prices.json
           timestamp=$(date -u)
           git commit -m "Latest data: ${timestamp}" || exit 0
           git push
