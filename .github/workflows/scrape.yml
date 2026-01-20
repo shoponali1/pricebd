@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-    - cron: '0 3,6,10,13 * * *' # 9 AM, 12 PM, 4 PM, 7 PM Bangladesh Time (UTC+6)
+    - cron: '0 * * * *' # Every hour
   workflow_dispatch:
 
 jobs:
