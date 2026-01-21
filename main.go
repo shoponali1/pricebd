@@ -124,7 +124,15 @@ func main() {
 	// Scrape Gold Prices
 	fmt.Println("📊 Scraping gold prices...")
 
+	// Debug: Check if tables exist
+	tableCount, _ := page.Locator("table").Count()
+	fmt.Printf("🔍 DEBUG: Found %d tables on page\n", tableCount)
+
+	goldTableCount, _ := page.Locator(".gold-table").Count()
+	fmt.Printf("🔍 DEBUG: Found %d .gold-table elements\n", goldTableCount)
+
 	goldK22, _ := page.Locator(".gold-table tbody tr:nth-child(1) .price").TextContent()
+	fmt.Printf("🔍 DEBUG: Raw goldK22 text: '%s'\n", goldK22)
 	todayPrice.K22 = parsePrice(goldK22)
 	fmt.Printf("  K22: %d\n", todayPrice.K22)
 
