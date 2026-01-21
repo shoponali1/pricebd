@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gocolly/colly"
+	"github.com/playwright-community/playwright-go"
 )
 
 type Price struct {
@@ -32,125 +32,127 @@ func writeRow(row *[]string, priceData *Price) {
 }
 
 func main() {
-	// Create collector with browser-like settings
-	c := colly.NewCollector(
-		colly.UserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"),
-	)
+	fmt.Println("🚀 Starting browser automation...")
 
-	// Add headers to mimic a real browser
-	c.OnRequest(func(r *colly.Request) {
-		r.Headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-		r.Headers.Set("Accept-Language", "en-US,en;q=0.9")
-		r.Headers.Set("Accept-Encoding", "gzip, deflate, br")
-		r.Headers.Set("Connection", "keep-alive")
-		r.Headers.Set("Upgrade-Insecure-Requests", "1")
-		r.Headers.Set("Sec-Fetch-Dest", "document")
-		r.Headers.Set("Sec-Fetch-Mode", "navigate")
-		r.Headers.Set("Sec-Fetch-Site", "none")
-		r.Headers.Set("Cache-Control", "max-age=0")
-		fmt.Println("🌐 Visiting:", r.URL)
+	// Install playwright browsers if needed
+	err := playwright.Install(&playwright.RunOptions{
+		Verbose: true,
 	})
+	if err != nil {
+		fmt.Printf("⚠️ Could not install playwright: %v\n", err)
+	}
 
-	// Add delay to avoid rate limiting
-	c.Limit(&colly.LimitRule{
-		DomainGlob:  "*bajus.org*",
-		Delay:       2 * time.Second,
-		RandomDelay: 1 * time.Second,
+	pw, err := playwright.Run()
+	if err != nil {
+		fmt.Printf("❌ Could not start playwright: %v\n", err)
+		os.Exit(1)
+	}
+	defer pw.Stop()
+
+	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
+		Headless: playwright.Bool(true),
 	})
+	if err != nil {
+		fmt.Printf("❌ Could not launch browser: %v\n", err)
+		os.Exit(1)
+	}
+	defer browser.Close()
+
+	page, err := browser.NewPage()
+	if err != nil {
+		fmt.Printf("❌ Could not create page: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("🌐 Navigating to bajus.org...")
+	if _, err = page.Goto("https://www.bajus.org/gold-price", playwright.PageGotoOptions{
+		WaitUntil: playwright.WaitUntilStateNetworkidle,
+		Timeout:   playwright.Float(30000),
+	}); err != nil {
+		fmt.Printf("❌ Could not goto page: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("⏳ Waiting for content to load...")
+	time.Sleep(3 * time.Second)
 
 	now := time.Now()
-	todayPrice := Price{}
-	todayPrice.Date = now.Format("2006-01-02")
-	todayPrice.Time = now.Format("15:04:05")
+	todayPrice := Price{
+		Date: now.Format("2006-01-02"),
+		Time: now.Format("15:04:05"),
+	}
 
-	todaySilverPrice := Price{}
-	todaySilverPrice.Date = now.Format("2006-01-02")
-	todaySilverPrice.Time = now.Format("15:04:05")
-
-	getPrice := func(e *colly.HTMLElement) int {
-		priceStr := strings.NewReplacer(",", "", " BDT/GRAM", "").Replace(e.Text)
-		price, err := strconv.Atoi(priceStr)
-		if err != nil {
-			fmt.Println("⚠️ Error parsing price:", err)
-			return 0
-		}
-		return price
+	todaySilverPrice := Price{
+		Date: now.Format("2006-01-02"),
+		Time: now.Format("15:04:05"),
 	}
 
 	// Scrape Gold Prices
-	c.OnHTML(".gold-table tr:nth-child(1) .price", func(e *colly.HTMLElement) {
-		todayPrice.K22 = getPrice(e)
-		fmt.Println("✅ Gold K22:", todayPrice.K22)
-	})
-	c.OnHTML(".gold-table tr:nth-child(2) .price", func(e *colly.HTMLElement) {
-		todayPrice.K21 = getPrice(e)
-		fmt.Println("✅ Gold K21:", todayPrice.K21)
-	})
-	c.OnHTML(".gold-table tr:nth-child(3) .price", func(e *colly.HTMLElement) {
-		todayPrice.K18 = getPrice(e)
-		fmt.Println("✅ Gold K18:", todayPrice.K18)
-	})
-	c.OnHTML(".gold-table tr:nth-child(4) .price", func(e *colly.HTMLElement) {
-		todayPrice.Traditional = getPrice(e)
-		fmt.Println("✅ Gold Traditional:", todayPrice.Traditional)
-	})
+	fmt.Println("📊 Scraping gold prices...")
+	
+	goldK22, _ := page.Locator(".gold-table tr:nth-child(1) .price").TextContent()
+	todayPrice.K22 = parsePrice(goldK22)
+	fmt.Printf("  K22: %d\n", todayPrice.K22)
+
+	goldK21, _ := page.Locator(".gold-table tr:nth-child(2) .price").TextContent()
+	todayPrice.K21 = parsePrice(goldK21)
+	fmt.Printf("  K21: %d\n", todayPrice.K21)
+
+	goldK18, _ := page.Locator(".gold-table tr:nth-child(3) .price").TextContent()
+	todayPrice.K18 = parsePrice(goldK18)
+	fmt.Printf("  K18: %d\n", todayPrice.K18)
+
+	goldTraditional, _ := page.Locator(".gold-table tr:nth-child(4) .price").TextContent()
+	todayPrice.Traditional = parsePrice(goldTraditional)
+	fmt.Printf("  Traditional: %d\n", todayPrice.Traditional)
 
 	// Scrape Silver Prices
-	c.OnHTML(".silver-table tr:nth-child(1) .price", func(e *colly.HTMLElement) {
-		todaySilverPrice.K22 = getPrice(e)
-		fmt.Println("✅ Silver K22:", todaySilverPrice.K22)
-	})
-	c.OnHTML(".silver-table tr:nth-child(2) .price", func(e *colly.HTMLElement) {
-		todaySilverPrice.K21 = getPrice(e)
-		fmt.Println("✅ Silver K21:", todaySilverPrice.K21)
-	})
-	c.OnHTML(".silver-table tr:nth-child(3) .price", func(e *colly.HTMLElement) {
-		todaySilverPrice.K18 = getPrice(e)
-		fmt.Println("✅ Silver K18:", todaySilverPrice.K18)
-	})
-	c.OnHTML(".silver-table tr:nth-child(4) .price", func(e *colly.HTMLElement) {
-		todaySilverPrice.Traditional = getPrice(e)
-		fmt.Println("✅ Silver Traditional:", todaySilverPrice.Traditional)
-	})
+	fmt.Println("📊 Scraping silver prices...")
+	
+	silverK22, _ := page.Locator(".silver-table tr:nth-child(1) .price").TextContent()
+	todaySilverPrice.K22 = parsePrice(silverK22)
+	fmt.Printf("  K22: %d\n", todaySilverPrice.K22)
 
-	// Error handler
-	c.OnError(func(r *colly.Response, err error) {
-		fmt.Printf("❌ Request failed with response: %d %s\n", r.StatusCode, err)
-		fmt.Println("Response headers:")
-		fmt.Println(r.Headers)
-	})
+	silverK21, _ := page.Locator(".silver-table tr:nth-child(2) .price").TextContent()
+	todaySilverPrice.K21 = parsePrice(silverK21)
+	fmt.Printf("  K21: %d\n", todaySilverPrice.K21)
 
-	c.OnScraped(func(r *colly.Response) {
-		fmt.Println("\n=== Scraping Completed ===")
-		fmt.Printf("Gold: Date=%s Time=%s K22=%d K21=%d K18=%d Traditional=%d\n",
-			todayPrice.Date, todayPrice.Time, todayPrice.K22, todayPrice.K21, todayPrice.K18, todayPrice.Traditional)
-		fmt.Printf("Silver: Date=%s Time=%s K22=%d K21=%d K18=%d Traditional=%d\n",
-			todaySilverPrice.Date, todaySilverPrice.Time, todaySilverPrice.K22, todaySilverPrice.K21, todaySilverPrice.K18, todaySilverPrice.Traditional)
+	silverK18, _ := page.Locator(".silver-table tr:nth-child(3) .price").TextContent()
+	todaySilverPrice.K18 = parsePrice(silverK18)
+	fmt.Printf("  K18: %d\n", todaySilverPrice.K18)
 
-		if todayPrice.K22 == 0 {
-			fmt.Println("⚠️ WARNING: Gold prices were not scraped! Check selectors.")
-		}
-		if todaySilverPrice.K22 == 0 {
-			fmt.Println("⚠️ WARNING: Silver prices were not scraped! Check selectors.")
-		}
+	silverTraditional, _ := page.Locator(".silver-table tr:nth-child(4) .price").TextContent()
+	todaySilverPrice.Traditional = parsePrice(silverTraditional)
+	fmt.Printf("  Traditional: %d\n", todaySilverPrice.Traditional)
 
-		savePrice("./fe/src/prices.csv", &todayPrice)
-		savePrice("./fe/src/silver-prices.csv", &todaySilverPrice)
+	fmt.Println("\n=== Scraping Completed ===")
+	fmt.Printf("Gold: %+v\n", todayPrice)
+	fmt.Printf("Silver: %+v\n", todaySilverPrice)
 
-		savePriceJSON("./fe/src/prices.json", &todayPrice)
-		savePriceJSON("./fe/src/silver-prices.json", &todaySilverPrice)
-
-		fmt.Println("=== Files Updated Successfully ===")
-	})
-
-	// Visit the website
-	fmt.Println("🚀 Starting scraper...")
-	err := c.Visit("https://www.bajus.org/gold-price")
-	if err != nil {
-		fmt.Println("❌ Error visiting website:", err)
-		fmt.Println("💡 Tip: The website might be blocking automated requests")
-		os.Exit(1)
+	if todayPrice.K22 == 0 {
+		fmt.Println("⚠️ WARNING: Gold prices were not scraped!")
 	}
+	if todaySilverPrice.K22 == 0 {
+		fmt.Println("⚠️ WARNING: Silver prices were not scraped!")
+	}
+
+	savePrice("./fe/src/prices.csv", &todayPrice)
+	savePrice("./fe/src/silver-prices.csv", &todaySilverPrice)
+
+	savePriceJSON("./fe/src/prices.json", &todayPrice)
+	savePriceJSON("./fe/src/silver-prices.json", &todaySilverPrice)
+
+	fmt.Println("✅ Files updated successfully!")
+}
+
+func parsePrice(priceStr string) int {
+	cleaned := strings.NewReplacer(",", "", " BDT/GRAM", "", " ", "").Replace(priceStr)
+	price, err := strconv.Atoi(cleaned)
+	if err != nil {
+		fmt.Printf("⚠️ Error parsing price '%s': %v\n", priceStr, err)
+		return 0
+	}
+	return price
 }
 
 func savePrice(filename string, priceData *Price) {
@@ -166,7 +168,7 @@ func savePrice(filename string, priceData *Price) {
 		records = [][]string{{"Date", "Time", "K18", "K21", "K22", "Traditional"}}
 	}
 
-	fmt.Printf("📝 Adding new record for %s %s to %s\n", priceData.Date, priceData.Time, filename)
+	fmt.Printf("📝 Adding record to %s\n", filename)
 	newRecord := make([]string, 6)
 	writeRow(&newRecord, priceData)
 	records = append(records, newRecord)
@@ -176,10 +178,6 @@ func savePrice(filename string, priceData *Price) {
 	writer := csv.NewWriter(f)
 	writer.WriteAll(records)
 	writer.Flush()
-
-	if err := writer.Error(); err != nil {
-		panic(err)
-	}
 }
 
 func savePriceJSON(filename string, priceData *Price) {
@@ -189,7 +187,7 @@ func savePriceJSON(filename string, priceData *Price) {
 		json.Unmarshal(file, &prices)
 	}
 
-	fmt.Printf("📝 Adding new JSON entry for %s %s to %s\n", priceData.Date, priceData.Time, filename)
+	fmt.Printf("📝 Adding JSON entry to %s\n", filename)
 	prices = append(prices, *priceData)
 
 	data, err := json.MarshalIndent(prices, "", "  ")
@@ -197,8 +195,5 @@ func savePriceJSON(filename string, priceData *Price) {
 		panic(err)
 	}
 
-	err = ioutil.WriteFile(filename, data, 0644)
-	if err != nil {
-		panic(err)
-	}
+	ioutil.WriteFile(filename, data, 0644)
 }
