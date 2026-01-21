@@ -124,12 +124,31 @@ func main() {
 		fmt.Printf("❌ Could not add init script: %v\n", err)
 	}
 
-	fmt.Println("🌐 Navigating to bajus.org...")
+	fmt.Println("🌐 Navigating to bajus.org (Home)...")
+	// Go to home page first to establish session/trust
+	if _, err = page.Goto("https://www.bajus.org", playwright.PageGotoOptions{
+		WaitUntil: playwright.WaitUntilStateNetworkidle,
+		Timeout:   playwright.Float(60000),
+	}); err != nil {
+		fmt.Printf("⚠️ Could not goto home page: %v\n", err)
+	}
+
+	fmt.Println("⏳ Warming up (Human Simulation)...")
+	time.Sleep(5 * time.Second)
+
+	// Simulate human mouse movements
+	page.Mouse().Move(100, 200)
+	time.Sleep(500 * time.Millisecond)
+	page.Mouse().Move(200, 100)
+	time.Sleep(500 * time.Millisecond)
+	page.Mouse().Move(300, 400)
+
+	fmt.Println("🌐 Navigating to Gold Price page...")
 	if _, err = page.Goto("https://www.bajus.org/gold-price", playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateNetworkidle,
 		Timeout:   playwright.Float(60000),
 	}); err != nil {
-		fmt.Printf("❌ Could not goto page: %v\n", err)
+		fmt.Printf("❌ Could not goto gold price page: %v\n", err)
 		os.Exit(1)
 	}
 
