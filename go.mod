@@ -1,6 +1,6 @@
 module github.com/shoponali1/pricebd
 
-go 1.20
+go 1.21
 
 require github.com/playwright-community/playwright-go v0.4702.0
 
