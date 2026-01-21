@@ -43,23 +43,23 @@ jobs:
             echo "No changes detected"
           fi
 
-      - name: Commit and Push changes
-        if: steps.check_changes.outputs.changes == 'true'
-        run: |
-          git config user.name "Automated Scraper"
-          git config user.email "actions@users.noreply.github.com"
-          
-          # Add all updated CSV and JSON files
-          git add fe/src/prices.csv fe/src/silver-prices.csv fe/src/prices.json fe/src/silver-prices.json
-          
-          # Create commit with timestamp
-          timestamp=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          git commit -m "🔄 Auto update prices: ${timestamp}"
-          
-          # Push to GitHub
-          git push origin main
-          
-          echo "✅ Changes pushed to GitHub successfully!"
+       - name: Commit and Push changes
+  run: |
+    git config user.name "Automated Scraper"
+    git config user.email "actions@users.noreply.github.com"
+    
+    # Add all files
+    git add fe/src/prices.csv fe/src/silver-prices.csv fe/src/prices.json fe/src/silver-prices.json
+    
+    timestamp=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+    
+    # Commit even if no changes (with --allow-empty)
+    git diff --cached --quiet && EMPTY="--allow-empty" || EMPTY=""
+    
+    git commit $EMPTY -m "🔄 Auto update prices: ${timestamp}"
+    git push origin main
+    
+    echo "✅ Changes pushed to GitHub successfully!"
 
       - name: Summary
         if: always()
