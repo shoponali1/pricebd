@@ -51,7 +51,7 @@ func main() {
 
 	// Advanced Stealth Launch Options
 	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
-		Headless: playwright.Bool(true),
+		Headless: playwright.Bool(false),
 		Args: []string{
 			"--disable-blink-features=AutomationControlled",
 			"--disable-infobars",
