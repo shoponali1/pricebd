@@ -154,9 +154,31 @@ func main() {
 
 	fmt.Println("⏳ Waiting for content to load...")
 
-	// Wait for table elements to be visible
+	// Check for Cloudflare Turnstile "Just a moment..."
+	title, _ := page.Title()
+	if strings.Contains(title, "Just a moment") {
+		fmt.Println("⚠️ Cloudflare Challenge Detected! Attempting to solve...")
+		time.Sleep(5 * time.Second)
+
+		// Try to find the Turnstile iframe and click the checkbox
+		frames := page.Frames()
+		for _, frame := range frames {
+			if strings.Contains(frame.URL(), "challenges.cloudflare.com") {
+				fmt.Println("✅ Found Turnstile Frame. Clicking...")
+				// The checkbox is usually the body or a specific div inside this frame
+				frame.Click("body", playwright.FrameClickOptions{
+					Timeout: playwright.Float(5000),
+				})
+				time.Sleep(10 * time.Second) // Wait for challenge to process
+				break
+			}
+		}
+
+	}
+
+	// Always wait for table elements to be visible (whether we had a challenge or not)
 	_, err = page.WaitForSelector("table", playwright.PageWaitForSelectorOptions{
-		Timeout: playwright.Float(20000),
+		Timeout: playwright.Float(30000),
 		State:   playwright.WaitForSelectorStateVisible,
 	})
 	if err != nil {
