@@ -15,6 +15,7 @@ import (
 
 type Price struct {
 	Date        string `json:"date"`
+	Time        string `json:"time"`
 	K22         int    `json:"k22"`
 	K21         int    `json:"k21"`
 	K18         int    `json:"k18"`
@@ -23,26 +24,31 @@ type Price struct {
 
 func writeRow(row *[]string, priceData *Price) {
 	(*row)[0] = priceData.Date
-	(*row)[1] = strconv.Itoa(priceData.K18)
-	(*row)[2] = strconv.Itoa(priceData.K21)
-	(*row)[3] = strconv.Itoa(priceData.K22)
-	(*row)[4] = strconv.Itoa(priceData.Traditional)
+	(*row)[1] = priceData.Time
+	(*row)[2] = strconv.Itoa(priceData.K18)
+	(*row)[3] = strconv.Itoa(priceData.K21)
+	(*row)[4] = strconv.Itoa(priceData.K22)
+	(*row)[5] = strconv.Itoa(priceData.Traditional)
 }
 
 func main() {
 	c := colly.NewCollector()
 
+	now := time.Now()
 	todayPrice := Price{}
-	todayPrice.Date = time.Now().Format("2006-01-02")
+	todayPrice.Date = now.Format("2006-01-02")
+	todayPrice.Time = now.Format("15:04:05")
 
 	todaySilverPrice := Price{}
-	todaySilverPrice.Date = time.Now().Format("2006-01-02")
+	todaySilverPrice.Date = now.Format("2006-01-02")
+	todaySilverPrice.Time = now.Format("15:04:05")
 
 	getPrice := func(e *colly.HTMLElement) int {
 		priceStr := strings.NewReplacer(",", "", " BDT/GRAM", "").Replace(e.Text)
 		price, err := strconv.Atoi(priceStr)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("Error parsing price:", err)
+			return 0
 		}
 		return price
 	}
@@ -76,49 +82,56 @@ func main() {
 	})
 
 	c.OnScraped(func(r *colly.Response) {
-		fmt.Println("Gold:", todayPrice)
-		fmt.Println("Silver:", todaySilverPrice)
+		fmt.Println("=== Scraping Completed ===")
+		fmt.Printf("Gold: Date=%s Time=%s K22=%d K21=%d K18=%d Traditional=%d\n",
+			todayPrice.Date, todayPrice.Time, todayPrice.K22, todayPrice.K21, todayPrice.K18, todayPrice.Traditional)
+		fmt.Printf("Silver: Date=%s Time=%s K22=%d K21=%d K18=%d Traditional=%d\n",
+			todaySilverPrice.Date, todaySilverPrice.Time, todaySilverPrice.K22, todaySilverPrice.K21, todaySilverPrice.K18, todaySilverPrice.Traditional)
 
 		savePrice("./fe/src/prices.csv", &todayPrice)
 		savePrice("./fe/src/silver-prices.csv", &todaySilverPrice)
 
 		savePriceJSON("./fe/src/prices.json", &todayPrice)
 		savePriceJSON("./fe/src/silver-prices.json", &todaySilverPrice)
+
+		fmt.Println("=== Files Updated Successfully ===")
 	})
 
-	c.Visit("https://www.bajus.org/gold-price")
+	err := c.Visit("https://www.bajus.org/gold-price")
+	if err != nil {
+		fmt.Println("Error visiting website:", err)
+		os.Exit(1)
+	}
 }
 
 func savePrice(filename string, priceData *Price) {
-	f, err := os.OpenFile(filename, os.O_RDWR, 0644)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		panic(err)
 	}
 	defer f.Close()
-	csvReader := csv.NewReader(f)
 
+	csvReader := csv.NewReader(f)
 	records, err := csvReader.ReadAll()
-	if err != nil {
-		panic(err)
+	if err != nil || len(records) == 0 {
+		records = [][]string{{"Date", "Time", "K18", "K21", "K22", "Traditional"}}
 	}
-	exists := false
-	for i := 0; i < len(records); i++ {
-		if records[i][0] == priceData.Date {
-			writeRow(&records[i], priceData)
-			exists = true
-			break
-		}
-	}
-	if !exists {
-		fmt.Printf("Adding new record for %s to %s\n", priceData.Date, filename)
-		records = append(records, make([]string, 5))
-		writeRow(&records[len(records)-1], priceData)
-	} else {
-		fmt.Printf("Updated existing record for %s in %s\n", priceData.Date, filename)
-	}
+
+	// Always append new entry
+	fmt.Printf("✅ Adding new record for %s %s to %s\n", priceData.Date, priceData.Time, filename)
+	newRecord := make([]string, 6)
+	writeRow(&newRecord, priceData)
+	records = append(records, newRecord)
+
 	f.Seek(0, 0)
 	f.Truncate(0)
-	csv.NewWriter(f).WriteAll(records)
+	writer := csv.NewWriter(f)
+	writer.WriteAll(records)
+	writer.Flush()
+
+	if err := writer.Error(); err != nil {
+		panic(err)
+	}
 }
 
 func savePriceJSON(filename string, priceData *Price) {
@@ -128,20 +141,9 @@ func savePriceJSON(filename string, priceData *Price) {
 		json.Unmarshal(file, &prices)
 	}
 
-	exists := false
-	for i, p := range prices {
-		if p.Date == priceData.Date {
-			prices[i] = *priceData
-			exists = true
-			break
-		}
-	}
-	if !exists {
-		fmt.Printf("Adding new JSON entry for %s to %s\n", priceData.Date, filename)
-		prices = append(prices, *priceData)
-	} else {
-		fmt.Printf("Updated existing JSON entry for %s in %s\n", priceData.Date, filename)
-	}
+	// Always append new entry
+	fmt.Printf("✅ Adding new JSON entry for %s %s to %s\n", priceData.Date, priceData.Time, filename)
+	prices = append(prices, *priceData)
 
 	data, err := json.MarshalIndent(prices, "", "  ")
 	if err != nil {
