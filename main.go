@@ -49,8 +49,19 @@ func main() {
 	}
 	defer pw.Stop()
 
+	// Advanced Stealth Launch Options
 	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
 		Headless: playwright.Bool(true),
+		Args: []string{
+			"--disable-blink-features=AutomationControlled",
+			"--disable-infobars",
+			"--no-sandbox",
+			"--disable-setuid-sandbox",
+			"--disable-dev-shm-usage",
+			"--disable-accelerated-2d-canvas",
+			"--disable-gpu",
+			"--window-size=1920,1080",
+		},
 	})
 	if err != nil {
 		fmt.Printf("❌ Could not launch browser: %v\n", err)
@@ -58,11 +69,22 @@ func main() {
 	}
 	defer browser.Close()
 
+	// Robust Browser Context with Headers
 	context, err := browser.NewContext(playwright.BrowserNewContextOptions{
-		UserAgent: playwright.String("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"),
+		UserAgent: playwright.String("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
 		Viewport: &playwright.Size{
 			Width:  1920,
 			Height: 1080,
+		},
+		HasTouch: playwright.Bool(false),
+		IsMobile: playwright.Bool(false),
+		ExtraHttpHeaders: map[string]string{
+			"Accept-Language":           "en-US,en;q=0.9",
+			"Accept":                    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+			"Upgrade-Insecure-Requests": "1",
+			"Sec-Ch-Ua":                 `"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"`,
+			"Sec-Ch-Ua-Mobile":          "?0",
+			"Sec-Ch-Ua-Platform":        `"Windows"`,
 		},
 	})
 	if err != nil {
@@ -76,12 +98,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Mask webdriver
+	// Advanced Stealth Script Injection
 	err = page.AddInitScript(playwright.Script{
 		Content: playwright.String(`
-			Object.defineProperty(navigator, 'webdriver', {
-				get: () => undefined
-			});
+			// Mask WebDriver
+			Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+			
+			// Mask Chrome Runtime
+			window.chrome = { runtime: {} };
+			
+			// Mock Plugins
+			Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+			Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+			
+			// Mock Permissions
+			const originalQuery = window.navigator.permissions.query;
+			window.navigator.permissions.query = (parameters) => (
+				parameters.name === 'notifications' ?
+					Promise.resolve({ state: 'denied' }) :
+					originalQuery(parameters)
+			);
 		`),
 	})
 	if err != nil {
