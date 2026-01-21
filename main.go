@@ -98,7 +98,17 @@ func main() {
 	}
 
 	fmt.Println("⏳ Waiting for content to load...")
-	time.Sleep(3 * time.Second)
+
+	// Wait for table elements to be visible
+	_, err = page.WaitForSelector("table", playwright.PageWaitForSelectorOptions{
+		Timeout: playwright.Float(20000),
+		State:   playwright.WaitForSelectorStateVisible,
+	})
+	if err != nil {
+		fmt.Printf("⚠️ Could not find table elements: %v\n", err)
+	}
+
+	time.Sleep(5 * time.Second)
 
 	now := time.Now()
 	todayPrice := Price{
