@@ -124,38 +124,38 @@ func main() {
 	// Scrape Gold Prices
 	fmt.Println("📊 Scraping gold prices...")
 
-	goldK22, _ := page.Locator(".gold-table tr:nth-child(1) .price").TextContent()
+	goldK22, _ := page.Locator(".gold-table tbody tr:nth-child(1) .price").TextContent()
 	todayPrice.K22 = parsePrice(goldK22)
 	fmt.Printf("  K22: %d\n", todayPrice.K22)
 
-	goldK21, _ := page.Locator(".gold-table tr:nth-child(2) .price").TextContent()
+	goldK21, _ := page.Locator(".gold-table tbody tr:nth-child(2) .price").TextContent()
 	todayPrice.K21 = parsePrice(goldK21)
 	fmt.Printf("  K21: %d\n", todayPrice.K21)
 
-	goldK18, _ := page.Locator(".gold-table tr:nth-child(3) .price").TextContent()
+	goldK18, _ := page.Locator(".gold-table tbody tr:nth-child(3) .price").TextContent()
 	todayPrice.K18 = parsePrice(goldK18)
 	fmt.Printf("  K18: %d\n", todayPrice.K18)
 
-	goldTraditional, _ := page.Locator(".gold-table tr:nth-child(4) .price").TextContent()
+	goldTraditional, _ := page.Locator(".gold-table tbody tr:nth-child(4) .price").TextContent()
 	todayPrice.Traditional = parsePrice(goldTraditional)
 	fmt.Printf("  Traditional: %d\n", todayPrice.Traditional)
 
 	// Scrape Silver Prices
 	fmt.Println("📊 Scraping silver prices...")
 
-	silverK22, _ := page.Locator(".silver-table tr:nth-child(1) .price").TextContent()
+	silverK22, _ := page.Locator(".silver-table tbody tr:nth-child(1) .price").TextContent()
 	todaySilverPrice.K22 = parsePrice(silverK22)
 	fmt.Printf("  K22: %d\n", todaySilverPrice.K22)
 
-	silverK21, _ := page.Locator(".silver-table tr:nth-child(2) .price").TextContent()
+	silverK21, _ := page.Locator(".silver-table tbody tr:nth-child(2) .price").TextContent()
 	todaySilverPrice.K21 = parsePrice(silverK21)
 	fmt.Printf("  K21: %d\n", todaySilverPrice.K21)
 
-	silverK18, _ := page.Locator(".silver-table tr:nth-child(3) .price").TextContent()
+	silverK18, _ := page.Locator(".silver-table tbody tr:nth-child(3) .price").TextContent()
 	todaySilverPrice.K18 = parsePrice(silverK18)
 	fmt.Printf("  K18: %d\n", todaySilverPrice.K18)
 
-	silverTraditional, _ := page.Locator(".silver-table tr:nth-child(4) .price").TextContent()
+	silverTraditional, _ := page.Locator(".silver-table tbody tr:nth-child(4) .price").TextContent()
 	todaySilverPrice.Traditional = parsePrice(silverTraditional)
 	fmt.Printf("  Traditional: %d\n", todaySilverPrice.Traditional)
 
