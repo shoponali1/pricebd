@@ -124,16 +124,44 @@ func main() {
 	// Scrape Gold Prices
 	fmt.Println("📊 Scraping gold prices...")
 
-	// Debug: Check if tables exist
-	tableCount, _ := page.Locator("table").Count()
-	fmt.Printf("🔍 DEBUG: Found %d tables on page\n", tableCount)
+	// Retry loop for scraping
+	maxRetries := 3
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		fmt.Printf("🔄 Attempt %d/%d to scrape gold prices...\n", attempt, maxRetries)
 
-	goldTableCount, _ := page.Locator(".gold-table").Count()
-	fmt.Printf("🔍 DEBUG: Found %d .gold-table elements\n", goldTableCount)
+		// Debug: Check if tables exist
+		tableCount, _ := page.Locator("table").Count()
+		fmt.Printf("🔍 DEBUG: Found %d tables on page\n", tableCount)
 
-	goldK22, _ := page.Locator(".gold-table tbody tr:nth-child(1) .price").TextContent()
-	fmt.Printf("🔍 DEBUG: Raw goldK22 text: '%s'\n", goldK22)
-	todayPrice.K22 = parsePrice(goldK22)
+		goldTableCount, _ := page.Locator(".gold-table").Count()
+		fmt.Printf("🔍 DEBUG: Found %d .gold-table elements\n", goldTableCount)
+
+		goldK22, _ := page.Locator(".gold-table tbody tr:nth-child(1) .price").TextContent()
+		fmt.Printf("🔍 DEBUG: Raw goldK22 text: '%s'\n", goldK22)
+		todayPrice.K22 = parsePrice(goldK22)
+
+		if todayPrice.K22 > 0 {
+			fmt.Printf("✅ Successfully scraped gold price: %d\n", todayPrice.K22)
+			break
+		}
+
+		fmt.Println("⚠️ Failed to scrape gold price. Retrying...")
+		time.Sleep(5 * time.Second)
+
+		if attempt == maxRetries {
+			fmt.Println("❌ All retry attempts failed!")
+
+			// Save error state
+			page.Screenshot(playwright.PageScreenshotOptions{
+				Path: playwright.String("error_screenshot.png"),
+			})
+			html, _ := page.Content()
+			os.WriteFile("error_page.html", []byte(html), 0644)
+
+			fmt.Println("📸 Saved error_screenshot.png and error_page.html")
+		}
+	}
+
 	fmt.Printf("  K22: %d\n", todayPrice.K22)
 
 	goldK21, _ := page.Locator(".gold-table tbody tr:nth-child(2) .price").TextContent()

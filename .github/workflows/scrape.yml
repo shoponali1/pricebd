@@ -63,6 +63,7 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           
           git add fe/src/prices.csv fe/src/silver-prices.csv fe/src/prices.json fe/src/silver-prices.json
+          git add error_screenshot.png error_page.html || true
           
           timestamp=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
           
