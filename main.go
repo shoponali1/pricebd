@@ -58,16 +58,40 @@ func main() {
 	}
 	defer browser.Close()
 
-	page, err := browser.NewPage()
+	context, err := browser.NewContext(playwright.BrowserNewContextOptions{
+		UserAgent: playwright.String("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"),
+		Viewport: &playwright.Size{
+			Width:  1920,
+			Height: 1080,
+		},
+	})
+	if err != nil {
+		fmt.Printf("❌ Could not create browser context: %v\n", err)
+		os.Exit(1)
+	}
+
+	page, err := context.NewPage()
 	if err != nil {
 		fmt.Printf("❌ Could not create page: %v\n", err)
 		os.Exit(1)
 	}
 
+	// Mask webdriver
+	err = page.AddInitScript(playwright.Script{
+		Content: playwright.String(`
+			Object.defineProperty(navigator, 'webdriver', {
+				get: () => undefined
+			});
+		`),
+	})
+	if err != nil {
+		fmt.Printf("❌ Could not add init script: %v\n", err)
+	}
+
 	fmt.Println("🌐 Navigating to bajus.org...")
 	if _, err = page.Goto("https://www.bajus.org/gold-price", playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateNetworkidle,
-		Timeout:   playwright.Float(30000),
+		Timeout:   playwright.Float(60000),
 	}); err != nil {
 		fmt.Printf("❌ Could not goto page: %v\n", err)
 		os.Exit(1)
@@ -89,7 +113,7 @@ func main() {
 
 	// Scrape Gold Prices
 	fmt.Println("📊 Scraping gold prices...")
-	
+
 	goldK22, _ := page.Locator(".gold-table tr:nth-child(1) .price").TextContent()
 	todayPrice.K22 = parsePrice(goldK22)
 	fmt.Printf("  K22: %d\n", todayPrice.K22)
@@ -108,7 +132,7 @@ func main() {
 
 	// Scrape Silver Prices
 	fmt.Println("📊 Scraping silver prices...")
-	
+
 	silverK22, _ := page.Locator(".silver-table tr:nth-child(1) .price").TextContent()
 	todaySilverPrice.K22 = parsePrice(silverK22)
 	fmt.Printf("  K22: %d\n", todaySilverPrice.K22)
