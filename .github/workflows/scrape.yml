@@ -6,28 +6,66 @@ on:
       - main
   schedule:
     - cron: '0 * * * *' # Every hour
-  workflow_dispatch:
+  workflow_dispatch: # Manual trigger option
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Full git history for better tracking
 
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
           go-version: '1.20'
 
-      - name: Run Scraper
-        run: go run main.go
+      - name: Install dependencies
+        run: go mod download
 
-      - name: Commit and Push if changed
+      - name: Run Go Scraper
+        run: |
+          echo "Starting price scraper..."
+          go run main.go
+          echo "Scraper completed successfully!"
+
+      - name: Check for changes
+        id: check_changes
+        run: |
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected in CSV/JSON files"
+          else
+            echo "changes=false" >> $GITHUB_OUTPUT
+            echo "No changes detected"
+          fi
+
+      - name: Commit and Push changes
+        if: steps.check_changes.outputs.changes == 'true'
         run: |
           git config user.name "Automated Scraper"
           git config user.email "actions@users.noreply.github.com"
+          
+          # Add all updated CSV and JSON files
           git add fe/src/prices.csv fe/src/silver-prices.csv fe/src/prices.json fe/src/silver-prices.json
-          timestamp=$(date -u)
-          git commit -m "Latest data: ${timestamp}" || exit 0
-          git push
+          
+          # Create commit with timestamp
+          timestamp=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          git commit -m "🔄 Auto update prices: ${timestamp}"
+          
+          # Push to GitHub
+          git push origin main
+          
+          echo "✅ Changes pushed to GitHub successfully!"
+
+      - name: Summary
+        if: always()
+        run: |
+          if [[ "${{ steps.check_changes.outputs.changes }}" == "true" ]]; then
+            echo "✅ Price data updated and pushed to GitHub"
+          else
+            echo "ℹ️ No price changes detected"
+          fi
