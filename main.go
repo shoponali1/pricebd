@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -32,9 +33,10 @@ func writeRow(row *[]string, priceData *Price) {
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano()) // random এর জন্য seed
+
 	fmt.Println("🚀 Starting browser automation...")
 
-	// Install playwright browsers if needed
 	err := playwright.Install(&playwright.RunOptions{
 		Verbose: true,
 	})
@@ -49,7 +51,6 @@ func main() {
 	}
 	defer pw.Stop()
 
-	// Advanced Stealth Launch Options
 	browser, err := pw.Chromium.Launch(playwright.BrowserTypeLaunchOptions{
 		Headless: playwright.Bool(false),
 		Args: []string{
@@ -69,7 +70,6 @@ func main() {
 	}
 	defer browser.Close()
 
-	// Robust Browser Context with Headers
 	context, err := browser.NewContext(playwright.BrowserNewContextOptions{
 		UserAgent: playwright.String("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
 		Viewport: &playwright.Size{
@@ -98,20 +98,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Advanced Stealth Script Injection
 	err = page.AddInitScript(playwright.Script{
 		Content: playwright.String(`
-			// Mask WebDriver
 			Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-			
-			// Mask Chrome Runtime
 			window.chrome = { runtime: {} };
-			
-			// Mock Plugins
 			Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
 			Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-			
-			// Mock Permissions
 			const originalQuery = window.navigator.permissions.query;
 			window.navigator.permissions.query = (parameters) => (
 				parameters.name === 'notifications' ?
@@ -125,7 +117,6 @@ func main() {
 	}
 
 	fmt.Println("🌐 Navigating to bajus.org (Home)...")
-	// Go to home page first to establish session/trust
 	if _, err = page.Goto("https://www.bajus.org", playwright.PageGotoOptions{
 		WaitUntil: playwright.WaitUntilStateNetworkidle,
 		Timeout:   playwright.Float(60000),
@@ -136,7 +127,6 @@ func main() {
 	fmt.Println("⏳ Warming up (Human Simulation)...")
 	time.Sleep(5 * time.Second)
 
-	// Simulate human mouse movements
 	page.Mouse().Move(100, 200)
 	time.Sleep(500 * time.Millisecond)
 	page.Mouse().Move(200, 100)
@@ -152,31 +142,37 @@ func main() {
 		os.Exit(1)
 	}
 
+	// ======================================
+	//          ৩০ সেকেন্ড ডিলে এখানে
+	// ======================================
+	fmt.Println("⏳ Anti-detection & rendering delay (30 seconds)...")
+	time.Sleep(30 * time.Second)
+
+	// অথবা random delay (20–45 সেকেন্ড) → বেশি নিরাপদ
+	// randomDelay := 20 + rand.Intn(26)
+	// fmt.Printf("⏳ Random human-like delay: %d seconds\n", randomDelay)
+	// time.Sleep(time.Duration(randomDelay) * time.Second)
+
 	fmt.Println("⏳ Waiting for content to load...")
 
-	// Check for Cloudflare Turnstile "Just a moment..."
 	title, _ := page.Title()
 	if strings.Contains(title, "Just a moment") {
 		fmt.Println("⚠️ Cloudflare Challenge Detected! Attempting to solve...")
 		time.Sleep(5 * time.Second)
 
-		// Try to find the Turnstile iframe and click the checkbox
 		frames := page.Frames()
 		for _, frame := range frames {
 			if strings.Contains(frame.URL(), "challenges.cloudflare.com") {
 				fmt.Println("✅ Found Turnstile Frame. Clicking...")
-				// The checkbox is usually the body or a specific div inside this frame
 				frame.Click("body", playwright.FrameClickOptions{
 					Timeout: playwright.Float(5000),
 				})
-				time.Sleep(10 * time.Second) // Wait for challenge to process
+				time.Sleep(10 * time.Second)
 				break
 			}
 		}
-
 	}
 
-	// Always wait for table elements to be visible (whether we had a challenge or not)
 	_, err = page.WaitForSelector("table", playwright.PageWaitForSelectorOptions{
 		Timeout: playwright.Float(30000),
 		State:   playwright.WaitForSelectorStateVisible,
@@ -185,7 +181,11 @@ func main() {
 		fmt.Printf("⚠️ Could not find table elements: %v\n", err)
 	}
 
-	time.Sleep(5 * time.Second)
+	// ======================================
+	//    আরেকটা ৩০ সেকেন্ড ডিলে (content stable হওয়ার জন্য)
+	// ======================================
+	fmt.Println("⏳ Final pause before scraping (30 seconds)...")
+	time.Sleep(30 * time.Second)
 
 	now := time.Now()
 	todayPrice := Price{
@@ -198,15 +198,12 @@ func main() {
 		Time: now.Format("15:04:05"),
 	}
 
-	// Scrape Gold Prices
 	fmt.Println("📊 Scraping gold prices...")
 
-	// Retry loop for scraping
 	maxRetries := 3
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		fmt.Printf("🔄 Attempt %d/%d to scrape gold prices...\n", attempt, maxRetries)
 
-		// Debug: Check if tables exist
 		tableCount, _ := page.Locator("table").Count()
 		fmt.Printf("🔍 DEBUG: Found %d tables on page\n", tableCount)
 
@@ -227,14 +224,9 @@ func main() {
 
 		if attempt == maxRetries {
 			fmt.Println("❌ All retry attempts failed!")
-
-			// Save error state
-			page.Screenshot(playwright.PageScreenshotOptions{
-				Path: playwright.String("error_screenshot.png"),
-			})
+			page.Screenshot(playwright.PageScreenshotOptions{Path: playwright.String("error_screenshot.png")})
 			html, _ := page.Content()
 			os.WriteFile("error_page.html", []byte(html), 0644)
-
 			fmt.Println("📸 Saved error_screenshot.png and error_page.html")
 		}
 	}
@@ -253,7 +245,6 @@ func main() {
 	todayPrice.Traditional = parsePrice(goldTraditional)
 	fmt.Printf("  Traditional: %d\n", todayPrice.Traditional)
 
-	// Scrape Silver Prices
 	fmt.Println("📊 Scraping silver prices...")
 
 	silverK22, _ := page.Locator(".silver-table tbody tr:nth-child(1) .price").TextContent()
